@@ -1,0 +1,33 @@
+// Exercise 2: Pin Change Interrupt on Pin 8 (Bare Metal)
+
+#define F_CPU 16000000UL
+#include <avr/io.h>
+#include <avr/interrupt.h>
+
+ISR(PCINT0_vect) {
+    // Toggle LED when pin 8 goes LOW
+    if (!(PINB & (1 << PINB0))) {   // Check if PB0 == LOW
+        PORTB ^= (1 << PORTB5);     // Toggle LED (PB5)
+    }
+}
+
+int main(void) {
+    // ----- Setup -----
+    DDRB |= (1 << DDB5);     // PB5 as output (LED)
+    DDRB &= ~(1 << DDB0);    // PB0 as input (Button)
+    PORTB |= (1 << PORTB0);  // Enable internal pull-up resistor
+
+    // ----- Configure Pin Change Interrupt -----
+    PCICR |= (1 << PCIE0);   // Enable PCINT[7:0] (PORTB group)
+    PCMSK0 |= (1 << PCINT0); // Enable PCINT0 (PB0 pin 8)
+
+    // Clear any pending flags
+    PCIFR |= (1 << PCIF0);
+
+    // Enable global interrupts
+    sei();
+
+    while (1) {
+        // main loop idle
+    }
+}
