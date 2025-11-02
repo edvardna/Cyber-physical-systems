@@ -1,0 +1,44 @@
+/*
+  Exercise 1.2 – Familiar with Wi-Fi library (WiFiNINA)
+  Board: Arduino MKR WiFi 1010
+*/
+
+#include <WiFiNINA.h>  // Include WiFiNINA library for MKR1010
+
+void setup() {
+  Serial.begin(9600);          // Start serial communication
+  while (!Serial);             // Wait for Serial Monitor to open (important for MKR boards)
+  Serial.println("WiFi Network Scanner started...");
+
+  // --- Check if the Wi-Fi module is detected ---
+  if (WiFi.status() == WL_NO_MODULE) {
+    Serial.println("WiFi module not found!");
+    while (true);              // Stop execution if no Wi-Fi module
+  }
+}
+
+void loop() {
+  Serial.println("Scanning available networks...");
+
+  // --- Scan for nearby Wi-Fi networks ---
+  int numNetworks = WiFi.scanNetworks();
+
+  // --- Print total number of networks found ---
+  Serial.print("Number of networks found: ");
+  Serial.println(numNetworks);
+
+  // --- Loop through and print details of each network ---
+  for (int i = 0; i < numNetworks; i++) {
+    Serial.print("Network: ");
+    Serial.print(WiFi.SSID(i));          // Network name
+    Serial.print(" | Signal Strength: ");
+    Serial.print(WiFi.RSSI(i));          // Signal in dBm
+    Serial.print(" dBm | Encryption: ");
+    Serial.println(WiFi.encryptionType(i)); // Encryption mode
+  }
+
+  Serial.println("--------------------------------------");
+
+  // --- Wait 30 seconds before rescanning ---
+  delay(30000);
+}
