@@ -1,0 +1,100 @@
+/*
+ * Exercise 4 – Power-down + External Interrupt + ADC + Serial Print
+ * Press button → MCU wakes → reads A0 → prints value → sleeps again
+ */
+
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <avr/sleep.h>
+#include <avr/power.h>
+#include <util/delay.h>
+
+#define LED_PIN PB5
+#define BUTTON_PIN PD2
+#define POT_PIN 0  // ADC0 = A0
+
+volatile uint8_t wake_flag = 0;
+
+ISR(INT0_vect) {
+    wake_flag = 1;   // Wakes MCU
+}
+
+void adc_init(void) {
+    ADMUX = (1 << REFS0);  // AVcc as reference, channel 0
+    ADCSRA = (1 << ADEN) | (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); // enable ADC, prescaler 128
+}
+
+uint16_t adc_read(uint8_t channel) {
+    ADMUX = (ADMUX & 0xF0) | (channel & 0x0F);
+    ADCSRA |= (1 << ADSC);              // start conversion
+    while (ADCSRA & (1 << ADSC));       // wait for finish
+    return ADC;
+}
+
+void int0_init(void) {
+    EIMSK |= (1 << INT0);               // Enable INT0
+    EICRA |= (1 << ISC01);              // Falling edge
+    EICRA &= ~(1 << ISC00);
+}
+
+void uart_init(void) {
+    // UART 9600 baud @ 16 MHz
+    uint16_t ubrr = 103;
+    UBRR0H = (ubrr >> 8);
+    UBRR0L = ubrr;
+    UCSR0B = (1 << TXEN0);              // Enable transmitter only
+    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00); // 8 data bits, 1 stop bit
+}
+
+void uart_send_char(char c) {
+    while (!(UCSR0A & (1 << UDRE0)));   // Wait until TX buffer empty
+    UDR0 = c;
+}
+
+void uart_send_string(const char *s) {
+    while (*s) uart_send_char(*s++);
+}
+
+void uart_send_number(uint16_t num) {
+    char buf[6];
+    itoa(num, buf, 10);
+    uart_send_string(buf);
+}
+
+int main(void) {
+    // I/O setup
+    DDRB |= (1 << LED_PIN);
+    PORTB &= ~(1 << LED_PIN);
+    DDRD &= ~(1 << BUTTON_PIN);
+    PORTD |= (1 << BUTTON_PIN);         // Enable pull-up
+
+    adc_init();
+    int0_init();
+    uart_init();                        // Initialize UART
+
+    sei();
+
+    while (1) {
+        // Sleep until button pressed
+        set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+        sleep_enable();
+        sleep_bod_disable();
+        sleep_cpu();
+        sleep_disable();
+
+        if (wake_flag) {
+            PORTB |= (1 << LED_PIN);    // LED ON
+
+            uint16_t pot_value = adc_read(POT_PIN);
+
+            // Send reading to Serial Monitor
+            uart_send_string("Potentiometer value: ");
+            uart_send_number(pot_value);
+            uart_send_string("\r\n");
+
+            _delay_ms(300);
+            PORTB &= ~(1 << LED_PIN);   // LED OFF
+            wake_flag = 0;
+        }
+    }
+}
