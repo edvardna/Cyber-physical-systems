@@ -1,0 +1,105 @@
+// ----------------------------------------------------------
+
+// Exercise 2A
+
+// Fan turns ON every 15 seconds for 5 seconds.
+
+// During the 5 seconds: fan speed increases each second.
+
+// Using pin 9 (PB1) + 2N2222 transistor driver.
+
+// ----------------------------------------------------------
+
+
+
+
+void setup() {
+
+
+
+
+// Set pin 9 (PB1) as OUTPUT
+
+DDRB |= (1 << PB1);
+
+
+
+
+// -------- Timer1 Setup for PWM on pin 9 --------
+
+// Fast PWM mode, TOP = ICR1
+
+// Non-inverting mode on OC1A (pin 9)
+
+// Prescaler = 8 → quiet 4 kHz PWM (safe for DC fan)
+
+
+
+
+TCCR1A = (1 << COM1A1) | (1 << WGM11);
+
+TCCR1B = (1 << WGM12) | (1 << WGM13) | (1
+<< CS11);
+
+
+
+
+ICR1 = 255; // 8-bit PWM range 0–255
+
+OCR1A = 0; // Start with fan OFF
+
+}
+
+
+
+
+void loop() {
+
+
+
+
+// ----------------------------
+
+// FAN RAMP-UP FOR 5 SECONDS
+
+// ----------------------------
+
+
+
+
+// We increase speed every 1 second
+
+// Example: 0 → 50 → 100 → 150 → 200 → 255 (full)
+
+for (int duty = 0; duty <= 255; duty += 50) {
+
+OCR1A = duty; // Set PWM duty cycle
+
+delay(1000); // Hold for 1 second
+
+}
+
+
+
+
+// After 5 seconds, turn fan OFF
+
+OCR1A = 0;
+
+
+
+
+// ----------------------------
+
+// REMAINING 10 SECONDS OFF
+
+// ----------------------------
+
+delay(10000);
+
+
+
+
+// Total cycle = 5 sec ON ramp + 10 sec OFF = 15 seconds
+
+}
