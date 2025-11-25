@@ -1,0 +1,80 @@
+#define F_CPU 16000000UL
+#include <avr/io.h>
+#include <util/delay.h>
+
+// ---------- Ultrasonic pin defs ----------
+#define TRIG_PORT PORTB
+#define TRIG_DDR  DDRB
+#define TRIG_BIT  PB1  // D9
+
+#define ECHO_PIN PINB
+#define ECHO_DDR DDRB
+#define ECHO_BIT PB2  // D10
+
+// ---------- Timer1 init ----------
+void timer1_init() {
+  TCCR1A = 0;
+  TCCR1B = (1 << CS11);  // prescaler 8 → 0.5us per tick
+}
+
+// ---------- Measure echo pulse ----------
+uint16_t echo_pulse_us() {
+  uint16_t timeout = 0;
+
+  // Wait for echo low
+  while (ECHO_PIN & (1 << ECHO_BIT))
+    if (++timeout > 30000) return 0;
+
+  // Wait for rising edge
+  timeout = 0;
+  while (!(ECHO_PIN & (1 << ECHO_BIT)))
+    if (++timeout > 30000) return 0;
+
+  // Measure high pulse
+  TCNT1 = 0;
+  while (ECHO_PIN & (1 << ECHO_BIT)) {
+    if (TCNT1 > 60000) break;
+  }
+
+  return TCNT1 / 2;   // convert 0.5µs ticks → µs
+}
+
+// ---------- Convert to distance ----------
+uint16_t get_distance_cm() {
+  // Trigger pulse
+  TRIG_PORT &= ~(1 << TRIG_BIT);
+  _delay_us(5);
+  TRIG_PORT |= (1 << TRIG_BIT);
+  _delay_us(12);
+  TRIG_PORT &= ~(1 << TRIG_BIT);
+
+  uint16_t dur_us = echo_pulse_us();
+  return (dur_us * 34UL) / 2000UL;  // µs → cm
+}
+
+// =====================================================
+//                       Arduino
+// =====================================================
+void setup() {
+  // TRIG output
+  TRIG_DDR |= (1 << TRIG_BIT);
+
+  // ECHO input
+  ECHO_DDR &= ~(1 << ECHO_BIT);
+
+  timer1_init();
+
+  // UART for debugging
+  // (Arduino Serial uses the same USART0)
+  Serial.begin(9600);
+}
+
+void loop() {
+  uint16_t dist = get_distance_cm();
+
+  Serial.print("Distance: ");
+  Serial.print(dist);
+  Serial.println(" cm");
+
+  _delay_ms(500);
+}
