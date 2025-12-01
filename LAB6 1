@@ -1,0 +1,45 @@
+#include <SPI.h>
+
+#define SS_PIN 10   // Hardware Slave Select pin on Uno
+
+void setup() {
+  Serial.begin(9600);
+
+  // Configure SS pin
+  pinMode(SS_PIN, OUTPUT);
+  digitalWrite(SS_PIN, HIGH);  // Slave inactive
+
+  // Start SPI hardware
+  SPI.begin();
+
+  // Apply required SPI settings from lab sheet:
+  // speed: 1 MHz
+  // bit order: MSB first
+  // mode: 0
+  SPI.beginTransaction(SPISettings(
+    1000000,     // 1 MHz
+    MSBFIRST,    // MSB first
+    SPI_MODE0    // Mode 0
+  ));
+
+  Serial.println("UNO SPI Master Ready");
+}
+
+void loop() {
+  byte sendByte = 0x55;  // example data (0101 0101)
+
+  // Enable slave
+  digitalWrite(SS_PIN, LOW);
+
+  // Send the byte
+  SPI.transfer(sendByte);
+
+  // Disable slave
+  digitalWrite(SS_PIN, HIGH);
+
+  // Debug output
+  Serial.print("Sent: 0x");
+  Serial.println(sendByte, HEX);
+
+  delay(500);  // send twice a second
+}
